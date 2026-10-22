@@ -1,0 +1,19 @@
+.DS_Store
+
+# Terraform local data and state
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/.terraform.tfstate.lock.info
+terraform/crash.log
+terraform/crash.*.log
+
+# Files generated from Ansible Vault
+terraform/secrets.auto.tfvars
+terraform/backend.hcl
+terraform/authorized_key.json
+
+# Local Ansible files
+ansible/.vault_pass
+*.retry
+

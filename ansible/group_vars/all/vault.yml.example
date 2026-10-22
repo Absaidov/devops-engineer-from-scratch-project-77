@@ -1,0 +1,5 @@
+---
+vault_yc_service_account_key_b64: "replace-with-base64-encoded-authorized-key-json"
+vault_tf_state_access_key: "replace-with-static-access-key-id"
+vault_tf_state_secret_key: "replace-with-static-secret-access-key"
+

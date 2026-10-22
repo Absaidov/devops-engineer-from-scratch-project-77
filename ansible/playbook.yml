@@ -1,0 +1,56 @@
+---
+- name: Generate local Terraform secret files
+  hosts: local
+  gather_facts: false
+
+  vars:
+    terraform_directory: "{{ playbook_dir }}/../terraform"
+
+  tasks:
+    - name: Validate Terraform provider secrets
+      ansible.builtin.assert:
+        that:
+          - vault_yc_service_account_key_b64 | default('') | trim | length > 0
+          - yc_cloud_id | default('') | trim | length > 0
+          - yc_folder_id | default('') | trim | length > 0
+          - yc_zone | default('') | trim | length > 0
+        fail_msg: >-
+          Configure the Yandex Cloud identifiers in vars.yml and the service
+          account key in the encrypted vault.yml file.
+      no_log: true
+
+    - name: Validate Terraform backend secrets
+      ansible.builtin.assert:
+        that:
+          - tf_state_bucket | default('') | trim | length > 0
+          - vault_tf_state_access_key | default('') | trim | length > 0
+          - vault_tf_state_secret_key | default('') | trim | length > 0
+        fail_msg: >-
+          Fill in the Object Storage backend values in the encrypted
+          ansible/group_vars/all/vault.yml file.
+      no_log: true
+
+    - name: Render Yandex Cloud service account key
+      ansible.builtin.template:
+        src: templates/authorized_key.json.j2
+        dest: "{{ terraform_directory }}/authorized_key.json"
+        mode: "0600"
+      no_log: true
+      diff: false
+
+    - name: Render Terraform provider variables
+      ansible.builtin.template:
+        src: templates/secrets.auto.tfvars.j2
+        dest: "{{ terraform_directory }}/secrets.auto.tfvars"
+        mode: "0600"
+      no_log: true
+      diff: false
+
+    - name: Render Terraform backend configuration
+      ansible.builtin.template:
+        src: templates/backend.hcl.j2
+        dest: "{{ terraform_directory }}/backend.hcl"
+        mode: "0600"
+      no_log: true
+      diff: false
+
