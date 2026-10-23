@@ -14,6 +14,8 @@
           - yc_cloud_id | default('') | trim | length > 0
           - yc_folder_id | default('') | trim | length > 0
           - yc_zone | default('') | trim | length > 0
+          - lookup('ansible.builtin.file', ssh_public_key_file, errors='ignore') | trim | length > 0
+          - ssh_allowed_cidrs | default([]) | length > 0
         fail_msg: >-
           Configure the Yandex Cloud identifiers in vars.yml and the service
           account key in the encrypted vault.yml file.
@@ -28,6 +30,16 @@
         fail_msg: >-
           Fill in the Object Storage backend values in the encrypted
           ansible/group_vars/all/vault.yml file.
+      no_log: true
+
+    - name: Validate application secrets
+      ansible.builtin.assert:
+        that:
+          - vault_database_password | default('') | length >= 12
+          - vault_redmine_secret_key_base | default('') | length >= 64
+        fail_msg: >-
+          Add the PostgreSQL password and the shared Redmine secret to the
+          encrypted ansible/group_vars/all/vault.yml file.
       no_log: true
 
     - name: Render Yandex Cloud service account key

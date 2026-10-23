@@ -10,7 +10,30 @@ TERRAFORM_DIR ?= terraform
 
 VAULT_ARGS = --vault-id "$(VAULT_ID)@prompt"
 
-.PHONY: vault-create vault-edit vault-view secrets terraform-init terraform-fmt terraform-validate
+.PHONY: setup init fmt validate check plan apply destroy output test \
+	vault-create vault-edit vault-view secrets \
+	terraform-init terraform-init-local terraform-fmt terraform-validate \
+	terraform-plan terraform-apply terraform-destroy terraform-output
+
+setup: secrets terraform-init
+
+init: terraform-init
+
+fmt: terraform-fmt
+
+validate: terraform-validate
+
+check: terraform-fmt terraform-validate
+
+plan: terraform-plan
+
+apply: terraform-apply
+
+destroy: terraform-destroy
+
+output: terraform-output
+
+test: terraform-fmt terraform-validate
 
 vault-create:
 	@test ! -e "$(VAULT_FILE)" || { echo "$(VAULT_FILE) already exists; use make vault-edit" >&2; exit 1; }
@@ -31,9 +54,24 @@ secrets:
 terraform-init:
 	$(TERRAFORM) -chdir="$(TERRAFORM_DIR)" init -backend-config=backend.hcl
 
+terraform-init-local:
+	$(TERRAFORM) -chdir="$(TERRAFORM_DIR)" init -backend=false
+
 terraform-fmt:
 	$(TERRAFORM) -chdir="$(TERRAFORM_DIR)" fmt -check -recursive
 
 terraform-validate:
 	$(TERRAFORM) -chdir="$(TERRAFORM_DIR)" validate
+
+terraform-plan:
+	$(TERRAFORM) -chdir="$(TERRAFORM_DIR)" plan
+
+terraform-apply:
+	$(TERRAFORM) -chdir="$(TERRAFORM_DIR)" apply
+
+terraform-destroy:
+	$(TERRAFORM) -chdir="$(TERRAFORM_DIR)" destroy
+
+terraform-output:
+	$(TERRAFORM) -chdir="$(TERRAFORM_DIR)" output
 
