@@ -2,6 +2,8 @@
 - name: Generate local Terraform secret files
   hosts: local
   gather_facts: false
+  tags:
+    - terraform-secrets
 
   vars:
     terraform_directory: "{{ playbook_dir }}/../terraform"
@@ -65,4 +67,134 @@
         mode: "0600"
       no_log: true
       diff: false
+
+- name: Prepare web servers and deploy Redmine
+  hosts: webservers
+  become: true
+  gather_facts: true
+  serial: 1
+
+  roles:
+    - role: geerlingguy.docker
+      tags:
+        - prepare
+
+  tasks:
+    - name: Stop Docker service before reloading its socket unit
+      ansible.builtin.systemd_service:
+        name: docker.service
+        state: stopped
+      tags:
+        - prepare
+
+    - name: Stop Docker socket before reloading its unit
+      ansible.builtin.systemd_service:
+        name: docker.socket
+        state: stopped
+      tags:
+        - prepare
+
+    - name: Reload systemd after Docker package changes
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+      tags:
+        - prepare
+
+    - name: Reset Docker systemd failure counters
+      ansible.builtin.command:
+        cmd: systemctl reset-failed docker.service docker.socket
+      changed_when: false
+      tags:
+        - prepare
+
+    - name: Start and enable Docker socket
+      ansible.builtin.systemd_service:
+        name: docker.socket
+        state: started
+        enabled: true
+      tags:
+        - prepare
+
+    - name: Start and enable Docker service
+      ansible.builtin.systemd_service:
+        name: docker.service
+        state: started
+        enabled: true
+      tags:
+        - prepare
+
+    - name: Install HTTP client for application checks
+      ansible.builtin.apt:
+        name: curl
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+      tags:
+        - prepare
+
+    - name: Validate deployment variables
+      ansible.builtin.assert:
+        that:
+          - redmine_database_host | default('') | trim | length > 0
+          - vault_database_password | default('') | length >= 12
+          - vault_redmine_secret_key_base | default('') | length >= 64
+        fail_msg: >-
+          Generate the inventory from Terraform outputs and configure the
+          application secrets in the encrypted vault.yml file.
+      no_log: true
+      tags:
+        - deploy
+
+    - name: Create Redmine directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      loop:
+        - "{{ redmine_directory }}"
+        - "{{ redmine_data_directory }}"
+      tags:
+        - deploy
+
+    - name: Render Redmine environment file
+      ansible.builtin.template:
+        src: templates/redmine.env.j2
+        dest: "{{ redmine_env_file }}"
+        owner: root
+        group: root
+        mode: "0600"
+      no_log: true
+      diff: false
+      tags:
+        - deploy
+
+    - name: Run Redmine container
+      community.docker.docker_container:
+        name: "{{ redmine_container_name }}"
+        image: "{{ redmine_image }}"
+        state: started
+        pull: always
+        restart_policy: unless-stopped
+        env_file: "{{ redmine_env_file }}"
+        published_ports:
+          - "{{ redmine_port }}:3000"
+        volumes:
+          - "{{ redmine_data_directory }}:/usr/src/redmine/files"
+      no_log: true
+      tags:
+        - deploy
+
+    - name: Wait for Redmine to become ready
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ redmine_port }}/login"
+        status_code: 200
+        return_content: false
+      register: redmine_health
+      retries: 30
+      delay: 10
+      until: redmine_health.status == 200
+      tags:
+        - deploy
 

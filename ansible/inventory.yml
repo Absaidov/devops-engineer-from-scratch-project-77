@@ -1,0 +1,35 @@
+---
+- name: Generate Ansible inventory from Terraform outputs
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    terraform_directory: "{{ playbook_dir }}/../terraform"
+    inventory_destination: "{{ playbook_dir }}/inventory.ini"
+    project_name: project-77
+    deployment_ssh_user: ubuntu
+    terraform_outputs: >-
+      {{ lookup(
+        'ansible.builtin.pipe',
+        'terraform -chdir=' ~ (terraform_directory | quote) ~ ' output -json'
+      ) | from_json }}
+
+  tasks:
+    - name: Validate required Terraform outputs
+      ansible.builtin.assert:
+        that:
+          - terraform_outputs.web_server_public_ips.value | default({}) | length == 2
+          - terraform_outputs.database_host.value | default('') | trim | length > 0
+        fail_msg: >-
+          Apply the Terraform infrastructure before generating the Ansible
+          inventory.
+
+    - name: Render Ansible inventory
+      ansible.builtin.template:
+        src: templates/inventory.ini.j2
+        dest: "{{ inventory_destination }}"
+        mode: "0644"
+      vars:
+        web_server_public_ips: "{{ terraform_outputs.web_server_public_ips.value }}"
+        database_host: "{{ terraform_outputs.database_host.value }}"

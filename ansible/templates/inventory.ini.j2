@@ -1,0 +1,10 @@
+[local]
+localhost ansible_connection=local
+
+[webservers]
+{% for zone, address in web_server_public_ips | dictsort %}
+{{ project_name }}-web-{{ zone | regex_replace('^.*-', '') }} ansible_host={{ address }} ansible_user={{ deployment_ssh_user }}
+{% endfor %}
+
+[webservers:vars]
+redmine_database_host={{ database_host }}

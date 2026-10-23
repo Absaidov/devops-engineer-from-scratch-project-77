@@ -17,6 +17,7 @@
 - Redmine 6.1.5
 - Managed Service for PostgreSQL 17
 - Application Load Balancer и Certificate Manager
+- Ansible Galaxy (`geerlingguy.docker` и `community.docker`)
 
 ## Архитектура
 
@@ -136,6 +137,43 @@ make apply
 ```bash
 make output
 ```
+
+### Подготовка серверов и деплой
+
+Установите роли и коллекции Ansible, затем сформируйте inventory из актуальных
+Terraform outputs:
+
+```bash
+make ansible-dependencies
+make inventory
+```
+
+Команда подготовки устанавливает и запускает Docker на всех хостах группы
+`webservers`. Она выполняет только задачи с тегом `prepare`:
+
+```bash
+make prepare
+```
+
+Деплой шаблонизирует на серверах защищённый файл `/opt/redmine/.env` и
+последовательно запускает контейнер Redmine на каждой ВМ. Настройки серверов
+при этом не изменяются, потому что выполняются только задачи с тегом `deploy`:
+
+```bash
+make deploy
+```
+
+Для проверки синтаксиса плейбука и доступности приложения используйте:
+
+```bash
+make ansible-syntax
+make ping
+make health
+```
+
+Команды, которым нужны зашифрованные переменные, запрашивают пароль Vault с
+идентификатором `project77`. Пароль базы данных и `SECRET_KEY_BASE` берутся
+только из зашифрованного `ansible/group_vars/all/vault.yml`.
 
 После выпуска сертификата приложение будет доступно по адресу
 [https://uit14.ru](https://uit14.ru). Выпуск сертификата Let's Encrypt и

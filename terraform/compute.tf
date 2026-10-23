@@ -37,14 +37,6 @@ resource "yandex_compute_instance" "web" {
 
   metadata = {
     ssh-keys = "${var.ssh_username}:${trimspace(var.ssh_public_key)}"
-    user-data = templatefile("${path.module}/templates/cloud-init.yaml.tftpl", {
-      database_host     = yandex_mdb_postgresql_cluster.main.host[0].fqdn
-      database_name     = yandex_mdb_postgresql_database.redmine.name
-      database_username = yandex_mdb_postgresql_user.redmine.name
-      database_password = var.database_password
-      secret_key_base   = var.redmine_secret_key_base
-      redmine_image     = var.redmine_image
-    })
   }
 
   scheduling_policy {
