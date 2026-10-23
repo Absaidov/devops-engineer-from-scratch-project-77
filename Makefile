@@ -22,7 +22,8 @@ export LC_ALL = en_US.UTF-8
 
 .PHONY: setup init fmt validate check plan apply destroy output test \
 	vault-create vault-edit vault-view secrets \
-	ansible-dependencies inventory prepare deploy ansible-syntax ping health \
+	ansible-dependencies inventory prepare deploy monitoring monitoring-check \
+	ansible-syntax ping health \
 	terraform-init terraform-init-local terraform-fmt terraform-validate \
 	terraform-plan terraform-apply terraform-destroy terraform-output
 
@@ -57,6 +58,13 @@ prepare: ansible-dependencies inventory
 
 deploy: ansible-dependencies inventory
 	$(ANSIBLE_PLAYBOOK) -i "$(ANSIBLE_INVENTORY)" "$(ANSIBLE_PLAYBOOK_FILE)" $(VAULT_ARGS) --limit webservers --tags deploy
+
+monitoring: ansible-dependencies inventory
+	$(ANSIBLE_PLAYBOOK) -i "$(ANSIBLE_INVENTORY)" "$(ANSIBLE_PLAYBOOK_FILE)" $(VAULT_ARGS) --limit webservers --tags monitoring
+
+monitoring-check:
+	ANSIBLE_VARS_ENABLED= $(ANSIBLE) webservers -i "$(ANSIBLE_INVENTORY)" --become \
+		-m ansible.builtin.command -a "datadog-agent check http_check"
 
 ansible-syntax:
 	ANSIBLE_VARS_ENABLED= $(ANSIBLE_PLAYBOOK) -i "$(ANSIBLE_INVENTORY)" "$(ANSIBLE_PLAYBOOK_FILE)" --syntax-check

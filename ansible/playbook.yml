@@ -44,6 +44,16 @@
           encrypted ansible/group_vars/all/vault.yml file.
       no_log: true
 
+    - name: Validate Datadog secrets
+      ansible.builtin.assert:
+        that:
+          - vault_datadog_api_key | default('') | trim | length > 0
+          - vault_datadog_app_key | default('') | trim | length > 0
+        fail_msg: >-
+          Add the Datadog API key and Application key to the encrypted
+          ansible/group_vars/all/vault.yml file.
+      no_log: true
+
     - name: Render Yandex Cloud service account key
       ansible.builtin.template:
         src: templates/authorized_key.json.j2
@@ -71,8 +81,15 @@
 - name: Prepare web servers and deploy Redmine
   hosts: webservers
   become: true
-  gather_facts: true
+  gather_facts: false
   serial: 1
+
+  pre_tasks:
+    - name: Gather facts for server preparation and deployment
+      ansible.builtin.setup:
+      tags:
+        - prepare
+        - deploy
 
   roles:
     - role: geerlingguy.docker
@@ -197,4 +214,25 @@
       until: redmine_health.status == 200
       tags:
         - deploy
+
+- name: Install and configure Datadog Agent
+  hosts: webservers
+  become: true
+  gather_facts: true
+  serial: 1
+  tags:
+    - monitoring
+
+  pre_tasks:
+    - name: Validate Datadog Agent secret
+      ansible.builtin.assert:
+        that:
+          - vault_datadog_api_key | default('') | trim | length > 0
+        fail_msg: >-
+          Add vault_datadog_api_key to the encrypted
+          ansible/group_vars/all/vault.yml file.
+      no_log: true
+
+  roles:
+    - role: datadog.dd.agent
 

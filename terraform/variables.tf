@@ -91,3 +91,21 @@ variable "redmine_image" {
   default     = "redmine:6.1.5"
 }
 
+variable "datadog_api_key" {
+  description = "Datadog API key supplied through Ansible Vault"
+  type        = string
+  sensitive   = true
+}
+
+variable "datadog_app_key" {
+  description = "Datadog Application key supplied through Ansible Vault"
+  type        = string
+  sensitive   = true
+}
+
+variable "datadog_api_url" {
+  description = "Datadog API endpoint for the selected Datadog site"
+  type        = string
+  default     = "https://api.datadoghq.com/"
+}
+

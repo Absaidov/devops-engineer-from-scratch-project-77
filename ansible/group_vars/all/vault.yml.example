@@ -4,4 +4,6 @@ vault_tf_state_access_key: "replace-with-static-access-key-id"
 vault_tf_state_secret_key: "replace-with-static-secret-access-key"
 vault_database_password: "replace-with-a-random-password-of-at-least-12-characters"
 vault_redmine_secret_key_base: "replace-with-a-random-secret-of-at-least-64-characters"
+vault_datadog_api_key: "replace-with-datadog-api-key"
+vault_datadog_app_key: "replace-with-datadog-application-key"
 

@@ -26,3 +26,26 @@ redmine_database_name: redmine
 redmine_database_username: redmine
 redmine_database_password: "{{ vault_database_password }}"
 redmine_secret_key_base: "{{ vault_redmine_secret_key_base }}"
+
+datadog_api_key: "{{ vault_datadog_api_key }}"
+datadog_app_key: "{{ vault_datadog_app_key }}"
+datadog_site: datadoghq.com
+datadog_api_url: "https://api.datadoghq.com/"
+datadog_config:
+  tags:
+    - "env:production"
+    - "service:redmine"
+    - "project:project-77"
+datadog_checks:
+  http_check:
+    init_config:
+    instances:
+      - name: redmine-local
+        url: "http://127.0.0.1:{{ redmine_port }}/login"
+        method: GET
+        timeout: 5
+        http_response_status_code: "200"
+        tags:
+          - "env:production"
+          - "service:redmine"
+          - "project:project-77"

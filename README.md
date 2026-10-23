@@ -18,6 +18,7 @@
 - Managed Service for PostgreSQL 17
 - Application Load Balancer и Certificate Manager
 - Ansible Galaxy (`geerlingguy.docker` и `community.docker`)
+- Datadog Agent и HTTP service-check monitor
 
 ## Архитектура
 
@@ -30,6 +31,10 @@ Terraform создаёт:
 - L7-балансировщик с постоянным публичным IP;
 - HTTP-редирект на HTTPS и TLS-терминацию;
 - публичную DNS-зону `uit14.ru` и управляемый сертификат Let's Encrypt.
+
+Ansible устанавливает Datadog Agent на обе ВМ. Каждый агент проверяет локальный
+адрес Redmine `http://127.0.0.1:3000/login`, а Terraform создаёт отдельный alert
+для каждого хоста.
 
 База данных принимает подключения только от группы безопасности веб-серверов,
 а порт Redmine `3000` доступен только балансировщику.
@@ -88,7 +93,9 @@ openssl rand -hex 64
 ```
 
 Сохраните результаты соответственно в `vault_database_password` и
-`vault_redmine_secret_key_base`. Не добавляйте открытые значения в Git.
+`vault_redmine_secret_key_base`. Для мониторинга также добавьте Datadog API key
+и Application key в `vault_datadog_api_key` и `vault_datadog_app_key`. Не
+добавляйте открытые значения в Git.
 
 Путь к публичному SSH-ключу и разрешённая для SSH сеть находятся в
 `ansible/group_vars/all/vars.yml`. При смене внешнего IP обновите
@@ -174,6 +181,38 @@ make health
 Команды, которым нужны зашифрованные переменные, запрашивают пароль Vault с
 идентификатором `project77`. Пароль базы данных и `SECRET_KEY_BASE` берутся
 только из зашифрованного `ansible/group_vars/all/vault.yml`.
+
+### Мониторинг
+
+В Datadog создайте API key для агентов и Application key с правами управления
+мониторами. Добавьте ключи в Ansible Vault:
+
+```yaml
+vault_datadog_api_key: "..."
+vault_datadog_app_key: "..."
+```
+
+Затем перегенерируйте локальные Terraform-переменные и установите Datadog Agent
+на обе ВМ:
+
+```bash
+EDITOR=nano make vault-edit
+make secrets
+make monitoring
+make monitoring-check
+```
+
+Команда `make monitoring-check` запускает проверку `http_check` непосредственно
+на обеих ВМ. После появления данных агента создайте Datadog monitor через
+Terraform:
+
+```bash
+make plan
+make apply
+```
+
+Monitor использует service check `http.can_connect`, группирует состояние по
+`host` и создаёт alert после двух последовательных неудачных HTTP-проверок.
 
 После выпуска сертификата приложение будет доступно по адресу
 [https://uit14.ru](https://uit14.ru). Выпуск сертификата Let's Encrypt и
